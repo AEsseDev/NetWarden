@@ -59,6 +59,11 @@ struct PopoverView: View {
                 }
 
                 HStack(spacing: 10) {
+                    Button(model.isAutoGamingModeEnabled ? "Авто-режим: ВКЛ" : "Авто-режим: ВЫКЛ") {
+                        model.setAutoGamingMode(!model.isAutoGamingModeEnabled)
+                    }
+                    .buttonStyle(.bordered)
+
                     Button("Открыть панель", action: onOpenDashboard)
                         .buttonStyle(.borderedProminent)
                     Button("Выход", action: onQuit)

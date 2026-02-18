@@ -46,6 +46,22 @@ enum ProcessCatalog {
         "vgk"
     ]
 
+    static let gameExactNames: Set<String> = [
+        "League of Legends",
+        "LeagueClient",
+        "LeagueClientUx",
+        "VALORANT",
+        "VALORANT-Win64-Shipping",
+        "Riot Client"
+    ]
+
+    static let gameNameTokens: [String] = [
+        "league",
+        "valorant",
+        "riot client",
+        "riotclient"
+    ]
+
     static func description(for process: String) -> String {
         descriptions[process] ?? "Локального описания пока нет. Наблюдайте за процессом и решайте вручную."
     }
@@ -54,5 +70,11 @@ enum ProcessCatalog {
         if protectedExactNames.contains(process) { return true }
         let lower = process.lowercased()
         return protectedNameTokens.contains(where: { lower.contains($0) })
+    }
+
+    static func isGameProcess(_ process: String) -> Bool {
+        if gameExactNames.contains(process) { return true }
+        let lower = process.lowercased()
+        return gameNameTokens.contains(where: { lower.contains($0) })
     }
 }

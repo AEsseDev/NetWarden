@@ -36,13 +36,20 @@ struct DashboardView: View {
             }
             Spacer()
             PulseHeader(active: model.isGamingModeEnabled)
-            Toggle("Игровой режим", isOn: Binding(
-                get: { model.isGamingModeEnabled },
-                set: { model.setGamingMode($0) }
-            ))
-            .toggleStyle(.switch)
-            .font(.system(size: 15, weight: .bold, design: .rounded))
-            .tint(model.isGamingModeEnabled ? .green : .orange)
+            VStack(alignment: .trailing, spacing: 8) {
+                Toggle("Игровой режим", isOn: Binding(
+                    get: { model.isGamingModeEnabled },
+                    set: { model.setGamingMode($0) }
+                ))
+                .toggleStyle(.switch)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .tint(model.isGamingModeEnabled ? .green : .orange)
+
+                Button(model.isAutoGamingModeEnabled ? "Авто-включение: ВКЛ" : "Авто-включение: ВЫКЛ") {
+                    model.setAutoGamingMode(!model.isAutoGamingModeEnabled)
+                }
+                .buttonStyle(.bordered)
+            }
         }
         .padding(16)
         .background(

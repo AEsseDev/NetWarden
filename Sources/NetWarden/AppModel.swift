@@ -5,6 +5,7 @@ import AppKit
 @MainActor
 final class AppModel: ObservableObject {
     @Published var isGamingModeEnabled = false
+    @Published var isAutoGamingModeEnabled = UserDefaults.standard.bool(forKey: "autoGamingModeEnabled")
     @Published var usages: [ProcessUsage] = []
     @Published var rules: [ProcessRule] = []
     @Published var actionLogs: [ActionLog] = []
@@ -19,6 +20,7 @@ final class AppModel: ObservableObject {
     private let control = ProcessControlService()
     private let store = RulesStore()
     private var logTimer: Timer?
+    private var autoManagedGamingMode = false
 
     func start() {
         AppLogger.shared.info("app-model", "Старт AppModel")
@@ -31,6 +33,7 @@ final class AppModel: ObservableObject {
             Task { @MainActor in
                 self?.usages = data
                 self?.recommendations = self?.buildRecommendations(from: data) ?? []
+                self?.handleAutoGamingMode(using: data)
             }
         }
         control.onAction = { [weak self] log in
@@ -56,6 +59,21 @@ final class AppModel: ObservableObject {
         AppLogger.shared.info("app-model", "Переключение игрового режима: \(enabled ? "ВКЛ" : "ВЫКЛ")")
         isGamingModeEnabled = enabled
         control.setEnabled(enabled)
+    }
+
+
+    func setAutoGamingMode(_ enabled: Bool) {
+        isAutoGamingModeEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: "autoGamingModeEnabled")
+
+        if !enabled, autoManagedGamingMode {
+            setGamingMode(false)
+            autoManagedGamingMode = false
+        }
+
+        let state = enabled ? "ВКЛ" : "ВЫКЛ"
+        uiNotice = "Авто-игровой режим: \(state)"
+        AppLogger.shared.info("app-model", "Авто-игровой режим: \(state)")
     }
 
     func addRule() {
@@ -164,6 +182,24 @@ final class AppModel: ObservableObject {
     private func stopLogTimer() {
         logTimer?.invalidate()
         logTimer = nil
+    }
+
+    private func handleAutoGamingMode(using usages: [ProcessUsage]) {
+        guard isAutoGamingModeEnabled else { return }
+
+        let hasRunningGame = usages.contains { ProcessCatalog.isGameProcess($0.processName) }
+
+        if hasRunningGame, !isGamingModeEnabled {
+            setGamingMode(true)
+            autoManagedGamingMode = true
+            uiNotice = "Обнаружена игра: игровой режим включен автоматически."
+            AppLogger.shared.info("app-model", "Авто-режим: игра обнаружена, включаем игровой режим")
+        } else if !hasRunningGame, autoManagedGamingMode {
+            setGamingMode(false)
+            autoManagedGamingMode = false
+            uiNotice = "Игра закрыта: игровой режим выключен автоматически."
+            AppLogger.shared.info("app-model", "Авто-режим: игра не обнаружена, выключаем игровой режим")
+        }
     }
 
     private func buildRecommendations(from usages: [ProcessUsage]) -> [RecommendationItem] {
