@@ -22,6 +22,10 @@ final class AppModel: ObservableObject {
 
     func start() {
         AppLogger.shared.info("app-model", "Старт AppModel")
+        if let recoveryNotice = control.recoverIfNeeded() {
+            uiNotice = recoveryNotice
+            AppLogger.shared.warning("app-model", recoveryNotice)
+        }
         loadRules()
         monitor.onSnapshot = { [weak self] data in
             Task { @MainActor in

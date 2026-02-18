@@ -2,24 +2,24 @@
 
 ## Полезные пути
 
-- Исходники: `/Users/antonesse/Developer/macOS/NetWarden`
-- Приложение: `/Users/antonesse/Applications/NetWarden.app`
-- LaunchAgent: `/Users/antonesse/Library/LaunchAgents/com.antonesse.netwarden.plist`
+- Исходники: `/path/to/NetWarden`
+- Приложение: `~/Applications/NetWarden.app`
+- LaunchAgent: `~/Library/LaunchAgents/com.antonesse.netwarden.plist`
 
 ## Пересборка и обновление `.app`
 
 ```bash
-cd /Users/antonesse/Developer/macOS/NetWarden
+cd /path/to/NetWarden
 swift build -c release
-cp .build/release/NetWarden /Users/antonesse/Applications/NetWarden.app/Contents/MacOS/NetWarden
-chmod +x /Users/antonesse/Applications/NetWarden.app/Contents/MacOS/NetWarden
+cp .build/release/NetWarden ~/Applications/NetWarden.app/Contents/MacOS/NetWarden
+chmod +x ~/Applications/NetWarden.app/Contents/MacOS/NetWarden
 ```
 
 ## Рестарт приложения
 
 ```bash
 pkill -x NetWarden || true
-open -gj /Users/antonesse/Applications/NetWarden.app
+open -gj ~/Applications/NetWarden.app
 ```
 
 ## Управление автозапуском
@@ -28,7 +28,7 @@ open -gj /Users/antonesse/Applications/NetWarden.app
 
 ```bash
 uid=$(id -u)
-launchctl bootstrap gui/$uid /Users/antonesse/Library/LaunchAgents/com.antonesse.netwarden.plist
+launchctl bootstrap gui/$uid ~/Library/LaunchAgents/com.antonesse.netwarden.plist
 launchctl enable gui/$uid/com.antonesse.netwarden
 launchctl kickstart -k gui/$uid/com.antonesse.netwarden
 ```
@@ -46,7 +46,7 @@ launchctl bootout gui/$uid/com.antonesse.netwarden
 Проверить, запущено ли приложение:
 
 ```bash
-pgrep -lf '/Users/antonesse/Applications/NetWarden.app/Contents/MacOS/NetWarden'
+pgrep -lf "$HOME/Applications/NetWarden.app/Contents/MacOS/NetWarden"
 ```
 
 Проверить launchd-сервис:

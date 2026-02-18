@@ -1,5 +1,10 @@
 import Foundation
 
+private struct WatchdogState: Codable {
+    var enabled: Bool
+    var pausedProcesses: [String]
+}
+
 final class ProcessControlService {
     var onAction: ((ActionLog) -> Void)?
 
@@ -9,18 +14,51 @@ final class ProcessControlService {
     private var rules: [ProcessRule] = []
     private var throttleManager = SystemThrottleManager()
     private var coolDown: [String: Date] = [:]
+    private var pausedByApp: Set<String> = []
+    private let stateFileURL: URL
+
+    init() {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let dir = appSupport.appendingPathComponent("NetWarden", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        stateFileURL = dir.appendingPathComponent("watchdog-state.json")
+        loadState()
+    }
+
+    func recoverIfNeeded() -> String? {
+        guard let state = readState(), state.enabled || !state.pausedProcesses.isEmpty else {
+            return nil
+        }
+
+        AppLogger.shared.warning("watchdog", "Обнаружено незавершенное состояние watchdog, запускаю аварийный recovery")
+        throttleManager.disable()
+
+        for process in state.pausedProcesses {
+            _ = Shell.runIgnoringFailure("pkill -CONT -x '\(process)'", category: "watchdog")
+            AppLogger.shared.info("watchdog", "Recovery: возобновлен процесс: \(process)")
+        }
+
+        pausedByApp.removeAll()
+        isEnabled = false
+        clearState()
+        return "После прошлого запуска найдено аварийное состояние. Процессы и настройки восстановлены."
+    }
 
     func setEnabled(_ enabled: Bool) {
         if enabled == isEnabled { return }
         isEnabled = enabled
         AppLogger.shared.info("watchdog", "Игровой режим -> \(enabled ? "ВКЛ" : "ВЫКЛ")")
+
         if enabled {
             throttleManager.enable()
             startWatchdog()
+            persistState()
         } else {
             stopWatchdog()
             throttleManager.disable()
-            resumePaused()
+            resumePausedTracked()
+            pausedByApp.removeAll()
+            clearState()
         }
     }
 
@@ -63,6 +101,12 @@ final class ProcessControlService {
             let output = Shell.runIgnoringFailure(command, category: "watchdog")
             let result = output.trimmingCharacters(in: .whitespacesAndNewlines)
             let status = result.isEmpty ? "applied" : result
+
+            if rule.action == .pause {
+                pausedByApp.insert(rule.processName)
+                persistState()
+            }
+
             AppLogger.shared.warning("watchdog", "Действие: \(rule.processName) -> \(rule.action.rawValue), результат=\(status)")
             onAction?(ActionLog(date: Date(), processName: rule.processName, action: rule.action, result: status))
         }
@@ -82,10 +126,32 @@ final class ProcessControlService {
         return true
     }
 
-    private func resumePaused() {
-        for rule in rules where rule.isEnabled && rule.action == .pause {
-            _ = Shell.runIgnoringFailure("pkill -CONT -x '\(rule.processName)'", category: "watchdog")
-            AppLogger.shared.info("watchdog", "Возобновлен процесс: \(rule.processName)")
+    private func resumePausedTracked() {
+        for process in pausedByApp {
+            _ = Shell.runIgnoringFailure("pkill -CONT -x '\(process)'", category: "watchdog")
+            AppLogger.shared.info("watchdog", "Возобновлен процесс: \(process)")
         }
+    }
+
+    private func persistState() {
+        let state = WatchdogState(enabled: isEnabled, pausedProcesses: Array(pausedByApp).sorted())
+        guard let data = try? JSONEncoder().encode(state) else { return }
+        try? data.write(to: stateFileURL, options: .atomic)
+    }
+
+    private func readState() -> WatchdogState? {
+        guard let data = try? Data(contentsOf: stateFileURL) else { return nil }
+        return try? JSONDecoder().decode(WatchdogState.self, from: data)
+    }
+
+    private func loadState() {
+        guard let state = readState() else { return }
+        isEnabled = state.enabled
+        pausedByApp = Set(state.pausedProcesses)
+        AppLogger.shared.info("watchdog", "Загружено состояние watchdog: enabled=\(state.enabled), paused=\(state.pausedProcesses.count)")
+    }
+
+    private func clearState() {
+        try? FileManager.default.removeItem(at: stateFileURL)
     }
 }

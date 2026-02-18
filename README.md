@@ -18,7 +18,7 @@ NetWarden — menu bar приложение для macOS, которое пом�
 ## Быстрый старт
 
 ```bash
-cd /Users/antonesse/Developer/macOS/NetWarden
+cd /path/to/NetWarden
 swift build -c release
 ```
 
@@ -30,8 +30,8 @@ swift run NetWarden
 
 Установленный `.app`:
 
-- `/Users/antonesse/Applications/NetWarden.app`
-- Ярлык на рабочем столе: `/Users/antonesse/Desktop/NetWarden.app`
+- `~/Applications/NetWarden.app`
+- Ярлык на рабочем столе: `~/Desktop/NetWarden.app`
 
 ## Логи
 
